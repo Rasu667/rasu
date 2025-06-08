@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin Panel - Student Marks</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-cover bg-center min-h-screen flex items-center justify-center p-4" 
+      style="background-image: url('https://images.unsplash.com/photo-1524995997946-a1c2e315a42f');">
+
+  <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-3xl">
+    <h1 class="text-3xl font-bold mb-6 text-center text-blue-700">Admin Panel - Manage Students</h1>
+
+    <form id="studentForm" class="space-y-6">
+      <div class="flex gap-2 items-center">
+        <input
+          type="text"
+          id="indexInput"
+          required
+          placeholder="Enter Index Number e.g. 2023001"
+          class="border rounded p-2 flex-grow"
+          autocomplete="off"
+        />
+        <button
+          type="button"
+          id="loadStudentBtn"
+          class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition"
+        >
+          Load Student
+        </button>
+      </div>
+
+      <div>
+        <label for="nameInput" class="block font-semibold mb-1">Student Name</label>
+        <input
+          type="text"
+          id="nameInput"
+          required
+          placeholder="Full Name"
+          class="border rounded p-2 w-full"
+          autocomplete="off"
+        />
+      </div>
+
+      <div>
+        <label for="examYearInput" class="block font-semibold mb-1">Exam Year</label>
+        <input
+          type="number"
+          id="examYearInput"
+          required
+          min="2000"
+          max="2099"
+          step="1"
+          value="2023"
+          class="border rounded p-2 w-full"
+          autocomplete="off"
+        />
+      </div>
+
+      <div>
+        <label class="block font-semibold mb-1">
+          Physics Marks (Paper 25 to 50) - Optional
+        </label>
+        <p class="text-sm text-gray-500 mb-2">Leave blank if not available.</p>
+        <div
+          id="physicsMarksContainer"
+          class="grid grid-cols-4 gap-4 max-h-64 overflow-y-auto border rounded p-3 bg-gray-50"
+        >
+          <!-- JS will insert paper inputs here -->
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        class="bg-blue-600 text-white px-6 py-3 rounded hover:bg-blue-700 transition w-full font-semibold"
+      >
+        Save Student
+      </button>
+    </form>
+  </div>
+
+<script>
+
+
+  // Hardcoded username & password (change these!)
+  const ADMIN_USERNAME = "admin";
+  const ADMIN_PASSWORD = "RASU";
+
+  // Simple login check on page load
+  window.onload = function() {
+    const username = prompt("Enter Admin Username:");
+    const password = prompt("Enter Admin Password:");
+
+    if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
+      alert("❌ Invalid credentials! Access denied.");
+      // Redirect away or close tab
+      window.location.href = "about:blank";
+    }
+    // else: allow access
+  }
+
+
+  // Load or init students data
+  let studentsData = JSON.parse(localStorage.getItem('studentsData') || '{}');
+
+  const physicsMarksContainer = document.getElementById('physicsMarksContainer');
+  const loadStudentBtn = document.getElementById('loadStudentBtn');
+  const studentForm = document.getElementById('studentForm');
+
+  // Create inputs for paper 25 to 50 dynamically
+  function createPaperInputs() {
+    for (let p = 25; p <= 50; p++) {
+      const div = document.createElement('div');
+      div.innerHTML = `
+        <label class="text-sm font-medium block mb-1">Paper ${p}</label>
+        <input
+          type="number"
+          min="0"
+          max="100"
+          step="1"
+          class="border rounded p-1 w-full physics-mark"
+          data-paper="${p}"
+          placeholder="Mark"
+          autocomplete="off"
+        />
+      `;
+      physicsMarksContainer.appendChild(div);
+    }
+  }
+  createPaperInputs();
+
+  // Load existing student data
+  loadStudentBtn.addEventListener('click', () => {
+    const index = document.getElementById('indexInput').value.trim();
+    if (!index) {
+      alert('Please enter an index number first');
+      return;
+    }
+
+    const student = studentsData[index];
+    if (!student) {
+      alert('No student found with that index number');
+      clearForm(false);
+      return;
+    }
+
+    document.getElementById('nameInput').value = student.name || '';
+    document.getElementById('examYearInput').value = student.examYear || '';
+
+    // Clear all physics marks inputs
+    document.querySelectorAll('.physics-mark').forEach(input => input.value = '');
+
+    // Fill physics marks if they exist
+    if (student.marks && student.marks.Physics) {
+      Object.entries(student.marks.Physics).forEach(([paper, mark]) => {
+        const input = document.querySelector(`.physics-mark[data-paper="${paper}"]`);
+        if (input) input.value = mark;
+      });
+    }
+  });
+
+  // Clear form fields except index (optional)
+  function clearForm(clearIndex = true) {
+    if (clearIndex) document.getElementById('indexInput').value = '';
+    document.getElementById('nameInput').value = '';
+    document.getElementById('examYearInput').value = '2023';
+    document.querySelectorAll('.physics-mark').forEach(input => (input.value = ''));
+  }
+
+  // Save or update student data
+  studentForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const index = document.getElementById('indexInput').value.trim();
+    const name = document.getElementById('nameInput').value.trim();
+    const examYear = document.getElementById('examYearInput').value.trim();
+
+    if (!index || !name || !examYear) {
+      alert('Please fill all required fields');
+      return;
+    }
+
+    // Gather physics marks (only non-empty)
+    const physicsMarksInputs = document.querySelectorAll('.physics-mark');
+    const physicsMarks = {};
+    physicsMarksInputs.forEach(input => {
+      const val = input.value.trim();
+      if (val !== '') {
+        const paper = input.getAttribute('data-paper');
+        physicsMarks[paper] = Number(val);
+      }
+    });
+
+    // Save/update student data
+    studentsData[index] = {
+      name,
+      examYear,
+      marks: {
+        Physics: physicsMarks
+      }
+    };
+
+    localStorage.setItem('studentsData', JSON.stringify(studentsData));
+
+    alert(`Student ${name} (${index}) saved successfully!`);
+
+    clearForm();
+  });
+</script>
+
+</body>
+</html>
